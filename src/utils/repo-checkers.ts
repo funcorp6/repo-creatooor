@@ -101,11 +101,12 @@ export class RepoCheckers {
     });
 
     if (newRepo) {
-      this.log(`Checking admin role for ${this.owner}...`);
-      const collaborators = await this.githubApi.getCollaborators(this.owner, this.repo);
+      this.log(`Checking admin role for ${this.owner}/${this.repo}...`);
+      // Since we are checking for the admin (aka creator), we only need to fetch direct collaborators of the repo
+      const collaborators = await this.githubApi.getCollaborators(this.owner, this.repo, { affiliation: 'direct' });
       repoAssertions.push({
         condition: collaborators.find((c) => c.login == this.admin)?.permissions.admin == true,
-        message: `Repo ${this.admin} does not have admin role for ${this.owner}`,
+        message: `Repo ${this.admin} does not have admin role for ${this.owner}/${this.repo}`,
       });
     }
 
