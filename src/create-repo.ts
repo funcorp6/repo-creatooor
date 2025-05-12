@@ -5,8 +5,10 @@ import { RepoCheckers } from './utils/repo-checkers';
 import { RepoUtils } from './utils/repo-utils';
 
 const createRepo = async () => {
-  const token = getEnvVariable('GH_TOKEN');
-  const githubApi = new GithubApi(token);
+  const appId = getEnvVariable('GH_APP_ID');
+  const installationId = getEnvVariable('GH_INSTALLATION_ID');
+  const privateKey = getEnvVariable('GH_APP_PRIVATE_KEY');
+  const githubApi = await GithubApi.initialize(appId, installationId, privateKey);
   const owner = getEnvVariable('GH_OWNER');
   const repoUtils = new RepoUtils(githubApi);
   const repo = getEnvVariable('GH_REPO_NAME').replace(/ /g, '-');
@@ -35,6 +37,7 @@ const createRepo = async () => {
       await repoUtils.addPrTemplate(owner, repo, projectCode);
     }
     await repoUtils.addCollaborator(owner, repo, admin, 'admin');
+    await repoUtils.addTeamAccess(owner, repo, 'all', 'pull');
     await repoUtils.checkBranchExistsOrCreate(owner, repo, 'dev', 'main');
     await repoUtils.updateRepo(owner, repo, '');
     await repoUtils.updateBranchProtection(owner, repo, 'main', true);
@@ -52,6 +55,7 @@ const createRepo = async () => {
       discordWebhook,
       `Repo **${repo}** creation failed ❌ please check the detailed logs at: https://github.com/defi-wonderland/repo-creatooor/actions/workflows/repo-creation.yml`
     );
+    throw err;
   }
 };
 

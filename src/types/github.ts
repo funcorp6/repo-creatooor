@@ -328,6 +328,8 @@ export type CollaboratorsResponse = {
   };
 }[];
 
+export type CollaboratorAffiliation = 'all' | 'direct' | 'outside';
+
 export type Repo = {
   id: number;
   name: string;
@@ -343,3 +345,5 @@ export type BranchResponse = {
   };
   protected: boolean;
 };
+
+export type AccessPermission = 'pull' | 'push' | 'admin' | 'maintain' | 'triage';

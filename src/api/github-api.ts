@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import * as jwt from 'jsonwebtoken';
 import {
   GetRefResponse,
   CreateRefPayload,
@@ -17,6 +18,8 @@ import {
   Repo,
   BranchResponse,
   UpdateRepoPayload,
+  AccessPermission,
+  CollaboratorAffiliation,
 } from '../types/github';
 
 export class GithubApi {
@@ -27,6 +30,34 @@ export class GithubApi {
       baseURL: 'https://api.github.com',
     });
     this.axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  static async initialize(appId: string, installationId: string, privateKey: string, expirationDurationInSeconds: number = 600) {
+    const jwt = this.generateJWT(appId, privateKey, expirationDurationInSeconds);
+    const accessToken = await this.getInstallationAccessToken(jwt, installationId);
+    return new GithubApi(accessToken);
+  }
+
+  private static generateJWT(appId: string, privateKey: string, expirationDurationInSeconds: number) {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iat: now,
+      exp: now + expirationDurationInSeconds,
+      iss: appId,
+    };
+    return jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+  }
+
+  private static async getInstallationAccessToken(jwt: any, installationId: string) {
+    const url = `https://api.github.com/app/installations/${installationId}/access_tokens`;
+    const headers = {
+      Accept: 'application/vnd.github.v3+json',
+      Authorization: `Bearer ${jwt}`,
+      'User-Agent': 'My-Github-App',
+    };
+
+    const response = await axios.post(url, {}, { headers });
+    return response.data.token; // This is your installation access token
   }
 
   async createRepo(owner: string, createRepoPayload: RepoPayload): Promise<RepoResponse> {
@@ -94,8 +125,7 @@ export class GithubApi {
 
   async addPrTemplate(owner: string, repo: string, projectCode: string): Promise<void> {
     const file = '.github/pull_request_template.md';
-    const content: string = `# 🤖 Linear\nCloses ${projectCode}-XXX
-    `;
+    const content: string = `# 🤖 Linear\n\nCloses ${projectCode}-XXX\n`;
     const b64Content: string = Buffer.from(content).toString('base64');
     const body: object = {
       message: 'Added PR template to Repo',
@@ -154,8 +184,32 @@ export class GithubApi {
     return data;
   }
 
-  async getCollaborators(owner: string, repo: string): Promise<CollaboratorsResponse> {
-    const { data } = await this.axios.get<CollaboratorsResponse>(`/repos/${owner}/${repo}/collaborators`);
+  /**
+   * Get collaborators for a repository
+   * @param owner - The owner of the repository
+   * @param repo - The name of the repository
+   * @param params - The parameters for the request
+   * @param params.affiliation (@default 'all') - The affiliation of the collaborators to get
+   * @param params.per_page (@default 30) - The number of collaborators to get per page
+   * @param params.page (@default 1) - The page number to get
+   * @returns The collaborators for the repository
+   */
+  async getCollaborators(
+    owner: string,
+    repo: string,
+    params?: { affiliation?: CollaboratorAffiliation; per_page?: number; page?: number }
+  ): Promise<CollaboratorsResponse> {
+    const affiliation = params?.affiliation ?? 'all';
+    const per_page = params?.per_page ?? 30;
+    const page = params?.page ?? 1;
+
+    const { data } = await this.axios.get<CollaboratorsResponse>(`/repos/${owner}/${repo}/collaborators`, {
+      params: {
+        affiliation,
+        per_page,
+        page,
+      },
+    });
     return data;
   }
 
@@ -176,5 +230,11 @@ export class GithubApi {
       console.log(`Checking if ${path} exists: ${err}`);
       return false;
     }
+  }
+
+  async addTeamAccess(owner: string, repo: string, teamSlug: string, permission: AccessPermission): Promise<void> {
+    await this.axios.put(`/orgs/${owner}/teams/${teamSlug}/repos/${owner}/${repo}`, {
+      permission,
+    });
   }
 }
