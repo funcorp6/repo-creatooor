@@ -1,6 +1,7 @@
 name: Repo doctor
 
 on:
+  repository_dispatch:
   workflow_dispatch:
     inputs:
       repo_name:
@@ -47,4 +48,5 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GH_REPO_NAME: ${{ github.event.inputs.repo_name }}
           GH_USER_CREATOR: ${{ github.actor }}
+          PAYLOAD: ${{ github.event.client_payload.message }}
         run: pnpm repo-doctor

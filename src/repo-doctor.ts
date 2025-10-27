@@ -14,7 +14,9 @@ import { RepoUtils } from './utils/repo-utils';
   const repo = getEnvVariable('GH_REPO_NAME');
   const trigger = getEnvVariable('GH_USER_CREATOR');
   const discordWebhook = getEnvVariable('DISCORD_WEBHOOK');
+  const payload = getEnvVariable('PAYLOAD');
   let discordNotifications = [];
+  console.log('payload: ', payload);
 
   const checkers = new RepoCheckers(githubApi, owner, repo, '', '', true);
 
